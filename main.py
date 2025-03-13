@@ -3,16 +3,16 @@ import os
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day
 from PIL import Image
 
-bot = telebot.TeleBot('8086994241:AAG8NYaP-2dxDJMyKFnqutIMCs-nUIxaLys', parse_mode="MarkdownV2")
+bot = telebot.TeleBot('8086994241:AAG8NYaP-2dxDJMyKFnqutIMCs-nUIxaLys')
 
 IMAGE_FOLDER = "images"
 
 
-def escape_markdown(text):
-    escape_chars = '_*[]()~`>#+-=|{}.!'
-    for char in escape_chars:
-        text = text.replace(char, f'\\{char}')
-    return text
+# def escape_markdown(text):
+#     escape_chars = '_*[]()~`>#+-=|{}.!'
+#     for char in escape_chars:
+#         text = text.replace(char, f'\\{char}')
+#     return text
 
 
 def resize_image(image_path):
@@ -32,12 +32,12 @@ def resize_image(image_path):
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "Привет! Я бот FridgeChef. Используй /random, чтобы получить рецепт дня.")
+    bot.send_message(message.chat.id, "Привет! (здесь будет инфа о боте)")
 
 
 @bot.message_handler(commands=['help'])
 def help(message):
-    bot.send_message(message.chat.id, "Доступные команды:\n/random - получить рецепт дня.")
+    bot.send_message(message.chat.id, "(здесь будет руководство по боту)")
 
 
 @bot.message_handler(commands=['random'])
@@ -51,13 +51,13 @@ def random_recipe(message):
         if os.path.exists(image_path):
             image_path = resize_image(image_path)
 
-            name = escape_markdown(recipe_of_the_day['name'])
-            instructions = escape_markdown(recipe_of_the_day['instructions'])
+            name = recipe_of_the_day['name']
+            instructions = recipe_of_the_day['instructions']
 
-            caption = f"*{name}*\n\n{instructions}"
+            caption = f"<b>{name}</b>\n\n{instructions}"
 
             with open(image_path, 'rb') as photo:
-                bot.send_photo(message.chat.id, photo, caption=caption)
+                bot.send_photo(message.chat.id, photo, caption=caption, parse_mode="HTML")
         else:
             bot.send_message(message.chat.id, "Изображение рецепта не найдено.")
     else:
