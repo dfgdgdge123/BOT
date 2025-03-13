@@ -1,32 +1,11 @@
 import telebot
-import random
-import datetime
 import os
+from random_func import update_recipe_of_the_day, get_recipe_of_the_day
+from PIL import Image
 
-bot = telebot.TeleBot('8086994241:AAG8NYaP-2dxDJMyKFnqutIMCs-nUIxaLys', parse_mode="MarkdownV2")  # Включаем MarkdownV2
+bot = telebot.TeleBot('8086994241:AAG8NYaP-2dxDJMyKFnqutIMCs-nUIxaLys', parse_mode="MarkdownV2")
 
 IMAGE_FOLDER = "images"
-
-recipes = [
-    {
-        "name": "Паста Карбонара",
-        "image": "carbonara.jpg",
-        "instructions": "1. Сварите спагетти. 2. Обжарьте бекон. 3. Смешайте яйца с сыром. 4. Соедините всё вместе."
-    },
-    {
-        "name": "Омлет с помидорами",
-        "image": "eggs.jpg",
-        "instructions": "1. Взбейте яйца. 2. Нарежьте помидоры. 3. Обжарьте всё на сковороде."
-    },
-    {
-        "name": "Салат Цезарь",
-        "image": "salad.jpeg",
-        "instructions": "1. Нарежьте салат и курицу. 2. Добавьте сухарики и соус. 3. Перемешайте."
-    }
-]
-
-recipe_of_the_day = None
-last_updated = None
 
 
 def escape_markdown(text):
@@ -36,12 +15,19 @@ def escape_markdown(text):
     return text
 
 
-def update_recipe_of_the_day():
-    global recipe_of_the_day, last_updated
-    today = datetime.date.today()
-    if last_updated != today:
-        recipe_of_the_day = random.choice(recipes)
-        last_updated = today
+def resize_image(image_path):
+    with Image.open(image_path) as img:
+        if img.format not in ['JPEG', 'JPG']:
+            image_path = image_path.rsplit('.', 1)[0] + '.jpg'
+            img = img.convert('RGB')
+
+        if img.width < 320 or img.height < 320:
+            new_size = (max(320, img.width), max(320, img.height))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        img.save(image_path, 'JPEG')
+
+    return image_path
 
 
 @bot.message_handler(commands=['start'])
@@ -57,10 +43,14 @@ def help(message):
 @bot.message_handler(commands=['random'])
 def random_recipe(message):
     update_recipe_of_the_day()
+    recipe_of_the_day = get_recipe_of_the_day()
+
     if recipe_of_the_day:
         image_path = os.path.join(IMAGE_FOLDER, recipe_of_the_day["image"])
 
         if os.path.exists(image_path):
+            image_path = resize_image(image_path)
+
             name = escape_markdown(recipe_of_the_day['name'])
             instructions = escape_markdown(recipe_of_the_day['instructions'])
 
