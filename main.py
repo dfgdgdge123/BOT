@@ -8,13 +8,6 @@ bot = telebot.TeleBot('8086994241:AAG8NYaP-2dxDJMyKFnqutIMCs-nUIxaLys')
 IMAGE_FOLDER = "images"
 
 
-# def escape_markdown(text):
-#     escape_chars = '_*[]()~`>#+-=|{}.!'
-#     for char in escape_chars:
-#         text = text.replace(char, f'\\{char}')
-#     return text
-
-
 def resize_image(image_path):
     with Image.open(image_path) as img:
         if img.format not in ['JPEG', 'JPG']:
@@ -32,15 +25,18 @@ def resize_image(image_path):
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "Привет! (здесь будет инфа о боте)")
+    bot.send_message(message.chat.id, "Привет! Я бот FridgeChef. 👋\nПиши команду /help чтобы узнать, что я умею")
 
 
 @bot.message_handler(commands=['help'])
 def help(message):
-    bot.send_message(message.chat.id, "(здесь будет руководство по боту)")
+    bot.send_message(message.chat.id, "💥 Итак, я могу:\n• Найти рецепты по ингредиентам.\n"
+                                      "• Предложить случайный рецепт дня.\n"
+                                      "• Подобрать блюда под вашу диету (кето, веган, ПП и другие).\n\n"
+                                      "Готовьте с удовольствием и без лишних хлопот! ⭐️")
 
 
-@bot.message_handler(commands=['random'])
+@bot.message_handler(commands=['recipe_of_the_day'])
 def random_recipe(message):
     update_recipe_of_the_day()
     recipe_of_the_day = get_recipe_of_the_day()
