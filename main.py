@@ -2,10 +2,12 @@ import telebot
 import os
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day
 from PIL import Image
+from translator import translate
 
-bot = telebot.TeleBot('8086994241:AAG8NYaP-2dxDJMyKFnqutIMCs-nUIxaLys')
+bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
 
 IMAGE_FOLDER = "images"
+server = 'www.themealdb.com/api/json/v1/1/'
 
 
 def resize_image(image_path):
@@ -61,6 +63,9 @@ def random_recipe(message):
             bot.send_message(message.chat.id, "Изображение рецепта не найдено.")
     else:
         bot.send_message(message.chat.id, "Рецепт дня не найден. Попробуйте позже.")
+@bot.message_handler(commands=['search'])
+def search(message):
+    bot.send_message(message.chat.id, translate(message.text, 'en'))
 
 
 bot.polling(none_stop=True)
