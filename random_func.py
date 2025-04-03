@@ -6,6 +6,7 @@ import os
 import io
 from googletrans import Translator
 from deep_translator import GoogleTranslator
+from functools import lru_cache
 
 recipe_of_the_day = None
 last_updated = None
@@ -13,6 +14,37 @@ translator = Translator(service_urls=[
     'translate.google.com',
     'translate.google.ru'
 ])
+
+UNIT_TRANSLATIONS = {
+    'cup': 'стакан',
+    'tablespoon': 'столовая ложка',
+    'teaspoon': 'чайная ложка',
+    'ounce': 'унция',
+    'pound': 'фунт',
+    'gram': 'грамм',
+    'kilogram': 'килограмм',
+    'milliliter': 'миллилитр',
+    'liter': 'литр',
+    'pinch': 'щепотка',
+    'clove': 'зубчик',
+    'slice': 'ломтик',
+    'piece': 'штука',
+    'can': 'банка'
+}
+
+@lru_cache(maxsize=1000)
+def translate_to_russian(text):
+    if not text or not isinstance(text, str):
+        return text
+
+    try:
+        for eng_unit, ru_unit in UNIT_TRANSLATIONS.items():
+            text = text.replace(eng_unit, ru_unit)
+
+        return GoogleTranslator(source='auto', target='ru').translate(text)
+    except Exception as e:
+        print(f"Ошибка перевода: {e}")
+        return text
 
 
 def translate_to_russian(text):
@@ -79,7 +111,6 @@ def get_random_recipe_from_api():
             if not image_path:
                 return None
 
-            # Переводим компоненты рецепта
             name = translate_to_russian(meal['strMeal'])
 
             ingredients = []
@@ -87,19 +118,17 @@ def get_random_recipe_from_api():
                 ingredient = meal.get(f'strIngredient{i}')
                 measure = meal.get(f'strMeasure{i}')
                 if ingredient and ingredient.strip():
+                    translated_measure = translate_to_russian(measure) if measure else ""
                     translated_ing = translate_to_russian(ingredient)
-                    ingredients.append(f"{measure} {translated_ing}".strip())
+                    ingredients.append(f"{translated_measure} {translated_ing}".strip())
 
             instructions = translate_to_russian(meal['strInstructions'])
-            instructions = ' '.join(instructions.split())
-            if len(instructions) > 500:
-                instructions = instructions[:497] + "..."
 
             return {
                 "name": name,
                 "image": image_path,
                 "instructions": instructions,
-                "ingredients": ingredients[:15]
+                "ingredients": ingredients
             }
     except Exception as e:
         print(f"Ошибка API: {e}")

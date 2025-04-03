@@ -59,19 +59,31 @@ def random_recipe(message):
                     parse_mode="HTML"
                 )
 
-            bot.send_message(
-                message.chat.id,
-                f"<u>Рецепт:</u>\n{recipe['instructions']}",
-                parse_mode="HTML"
-            )
+            instructions = recipe['instructions']
+            chunk_size = 4000
+            for i in range(0, len(instructions), chunk_size):
+                chunk = instructions[i:i+chunk_size]
+                bot.send_message(
+                    message.chat.id,
+                    f"<u>Рецепт:</u>\n{chunk}" if i == 0 else chunk,
+                    parse_mode="HTML"
+                )
         else:
             ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
             bot.send_message(
                 message.chat.id,
-                f"<b>{recipe['name']}</b>\n\n<u>Ингредиенты:</u>\n{ingredients_text}\n\n"
-                f"<u>Рецепт:</u>\n{recipe['instructions']}",
+                f"<b>{recipe['name']}</b>\n\n<u>Ингредиенты:</u>\n{ingredients_text}",
                 parse_mode="HTML"
             )
+            instructions = recipe['instructions']
+            chunk_size = 4000
+            for i in range(0, len(instructions), chunk_size):
+                chunk = instructions[i:i+chunk_size]
+                bot.send_message(
+                    message.chat.id,
+                    f"<u>Рецепт:</u>\n{chunk}" if i == 0 else chunk,
+                    parse_mode="HTML"
+                )
     else:
         bot.send_message(message.chat.id, "Рецепт дня не найден. Попробуйте позже.")
 
