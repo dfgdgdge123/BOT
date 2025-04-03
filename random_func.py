@@ -1,13 +1,30 @@
-# random_func.py
 import random
 import datetime
 import requests
 from PIL import Image
 import os
 import io
+from googletrans import Translator
+from deep_translator import GoogleTranslator
 
 recipe_of_the_day = None
 last_updated = None
+translator = Translator(service_urls=[
+    'translate.google.com',
+    'translate.google.ru'
+])
+
+
+def translate_to_russian(text):
+    if not text or not isinstance(text, str):
+        return text
+
+    try:
+        return GoogleTranslator(source='auto', target='ru').translate(text)
+    except Exception as e:
+        print(f"Ошибка перевода: {e}")
+        return text
+
 
 # Локальные рецепты на случай если API временно не работает
 local_recipes = [
@@ -62,25 +79,30 @@ def get_random_recipe_from_api():
             if not image_path:
                 return None
 
+            # Переводим компоненты рецепта
+            name = translate_to_russian(meal['strMeal'])
+
             ingredients = []
             for i in range(1, 21):
                 ingredient = meal.get(f'strIngredient{i}')
                 measure = meal.get(f'strMeasure{i}')
                 if ingredient and ingredient.strip():
-                    ingredients.append(f"{measure} {ingredient}".strip())
+                    translated_ing = translate_to_russian(ingredient)
+                    ingredients.append(f"{measure} {translated_ing}".strip())
 
-            instructions = ' '.join(meal['strInstructions'].split())
+            instructions = translate_to_russian(meal['strInstructions'])
+            instructions = ' '.join(instructions.split())
             if len(instructions) > 500:
                 instructions = instructions[:497] + "..."
 
             return {
-                "name": meal['strMeal'],
+                "name": name,
                 "image": image_path,
                 "instructions": instructions,
                 "ingredients": ingredients[:15]
             }
     except Exception as e:
-        print(f"Ошибка при получении рецепта из API: {e}")
+        print(f"Ошибка API: {e}")
     return None
 
 

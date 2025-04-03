@@ -4,6 +4,7 @@ from random_func import update_recipe_of_the_day, get_recipe_of_the_day
 from PIL import Image
 from translator import translate
 
+
 bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
 
 IMAGE_FOLDER = "images"
