@@ -1,80 +1,95 @@
+# random_func.py
 import random
 import datetime
+import requests
+from PIL import Image
+import os
+import io
 
 recipe_of_the_day = None
 last_updated = None
 
-recipes = [
+# Локальные рецепты на случай если API временно не работает
+local_recipes = [
     {
         "name": "Паста Карбонара",
-        "image": "carbonara.jpg",
+        "image": os.path.abspath(os.path.join("images", "carbonara.jpg")),
         "instructions": "Рецепт классической карбонары (на 4 порции):\n\n"
-                        "Ингредиенты:\n"
-                        "• спагетти — 500 г;\n"
-                        "• оливковое масло — 6 ст. л.;\n"
-                        "• сырокопчёный бекон или грудинка — 300 г;\n"
-                        "• чеснок — 1 зубчик;\n"
-                        "• твёрдый сыр — 100 г;\n"
-                        "• желтки — 6 шт.;\n"
-                        "• соль, свежемолотый чёрный перец — по вкусу.\n\n"
-                        "Приготовление:\n"
                         "1. Сварите спагетти в подсоленной воде с оливковым маслом до состояния 'аль денте'.\n"
                         "2. Нарежьте бекон тонкими полосками, чеснок измельчите.\n"
                         "3. Обжарьте бекон с чесноком на сковороде до румяности.\n"
                         "4. Натрите сыр, добавьте горячую воду от спагетти, взбейте желтки и смешайте с сыром.\n"
                         "5. Слейте воду со спагетти, добавьте к ним сырно-яичную смесь и бекон.\n"
                         "6. Перемешайте, приправьте солью и перцем. Подавайте горячим."
+                        ,
+        "ingredients": ["спагетти", "бекон", "яйца", "сыр"]
     },
-    {
-        "name": "Омлет с помидорами",
-        "image": "eggs.jpg",
-        "instructions": "Рецепт омлета с помидорами (на 2 порции):\n\n"
-                        "Ингредиенты:\n"
-                        "• помидоры свежие — 200 г;\n"
-                        "• твёрдый сыр — 150 г;\n"
-                        "• майонез — 25 г;\n"
-                        "• яйца куриные — 3 шт.;\n"
-                        "• молоко — 150 мл;\n"
-                        "• соль — 5 г;\n"
-                        "• чёрный молотый перец — 5 г;\n"
-                        "• подсолнечное масло — 15 г.\n\n"
-                        "Приготовление:\n"
-                        "1. Взбейте яйца с майонезом, солью и перцем, добавьте молоко и перемешайте.\n"
-                        "2. Натерите сыр, нарежьте помидоры и добавьте их к яичной массе.\n"
-                        "3. Разогрейте сковороду с маслом, вылейте смесь и готовьте на медленном огне 10–15 минут.\n"
-                        "4. Подавайте горячим, можно использовать черри или другой сыр по вкусу."
-    },
-    {
-        "name": "Салат Цезарь",
-        "image": "salad.jpeg",
-        "instructions": "Рецепт салата Цезарь:\n\n"
-                        "Ингредиенты:\n"
-                        "• куриная грудка — 1 шт. (400 г);\n"
-                        "• пекинская капуста — 1 шт.;\n"
-                        "• помидоры черри — 150–200 г;\n"
-                        "• твёрдый сыр (желательно пармезан) — 50–70 г;\n"
-                        "• белый хлеб — 3–4 ломтика;\n"
-                        "• соль — по вкусу;\n"
-                        "• оливковое масло — 6 ст. л. (для жарки);\n"
-                        "• перец чёрный молотый — 1 ч. л.;\n"
-                        "• чеснок — 4 зубчика;\n"
-                        "• майонез — 3–4 ст. л.\n\n"
-                        "Приготовление:\n"
-                        "1. Нарежьте куриную грудку и обжарьте до готовности.\n"
-                        "2. Нарежьте хлеб кубиками, обжарьте с чесноком до золотистой корочки.\n"
-                        "3. Нарежьте пекинскую капусту, натрите сыр и подготовьте черри.\n"
-                        "4. Смешайте майонез с чесноком для заправки.\n"
-                        "5. Соедините все ингредиенты, заправьте и подавайте."
-    }
 ]
 
+
+def download_and_save_image(url, meal_id):
+    try:
+        # Создаем папку images если ее нет
+        os.makedirs("images", exist_ok=True)
+
+        response = requests.get(url)
+        if response.status_code == 200:
+            image_path = os.path.abspath(os.path.join("images", f"{meal_id}.jpg"))
+
+            with open(image_path, 'wb') as f:
+                f.write(response.content)
+
+            with Image.open(image_path) as img:
+                img = img.convert('RGB')
+                if img.width < 320 or img.height < 320:
+                    new_size = (max(320, img.width), max(320, img.height))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+                img.save(image_path, 'JPEG', quality=85)
+
+            return image_path
+    except Exception as e:
+        print(f"Ошибка при загрузке изображения: {e}")
+    return None
+
+
+def get_random_recipe_from_api():
+    try:
+        response = requests.get('https://www.themealdb.com/api/json/v1/1/random.php')
+        if response.status_code == 200:
+            meal = response.json()['meals'][0]
+
+            image_path = download_and_save_image(meal['strMealThumb'], meal['idMeal'])
+            if not image_path:
+                return None
+
+            ingredients = []
+            for i in range(1, 21):
+                ingredient = meal.get(f'strIngredient{i}')
+                measure = meal.get(f'strMeasure{i}')
+                if ingredient and ingredient.strip():
+                    ingredients.append(f"{measure} {ingredient}".strip())
+
+            instructions = ' '.join(meal['strInstructions'].split())
+            if len(instructions) > 500:
+                instructions = instructions[:497] + "..."
+
+            return {
+                "name": meal['strMeal'],
+                "image": image_path,
+                "instructions": instructions,
+                "ingredients": ingredients[:15]
+            }
+    except Exception as e:
+        print(f"Ошибка при получении рецепта из API: {e}")
+    return None
 
 
 def update_recipe_of_the_day():
     global recipe_of_the_day, last_updated
     today = datetime.date.today()
     if last_updated != today:
-        recipe_of_the_day = random.choice(recipes)
+        api_recipe = get_random_recipe_from_api()
+        recipe_of_the_day = api_recipe if api_recipe else random.choice(local_recipes)
         last_updated = today
 
 

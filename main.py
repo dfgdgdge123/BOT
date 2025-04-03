@@ -39,30 +39,42 @@ def help(message):
                                       "<b>Готовьте с удовольствием и без лишних хлопот! ⭐️</b>", parse_mode="HTML")
 
 
-
-
 @bot.message_handler(commands=['recipe_of_the_day'])
 def random_recipe(message):
     update_recipe_of_the_day()
-    recipe_of_the_day = get_recipe_of_the_day()
+    recipe = get_recipe_of_the_day()
 
-    if recipe_of_the_day:
-        image_path = os.path.join(IMAGE_FOLDER, recipe_of_the_day["image"])
+    if recipe:
+        image_path = recipe["image"]
 
         if os.path.exists(image_path):
-            image_path = resize_image(image_path)
-
-            name = recipe_of_the_day['name']
-            instructions = recipe_of_the_day['instructions']
-
-            caption = f"<b>{name}</b>\n\n{instructions}"
+            ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
 
             with open(image_path, 'rb') as photo:
-                bot.send_photo(message.chat.id, photo, caption=caption, parse_mode="HTML")
+                bot.send_photo(
+                    message.chat.id,
+                    photo,
+                    caption=f"<b>{recipe['name']}</b>\n\n<u>Ингредиенты:</u>\n{ingredients_text}",
+                    parse_mode="HTML"
+                )
+
+            bot.send_message(
+                message.chat.id,
+                f"<u>Приготовление:</u>\n{recipe['instructions']}",
+                parse_mode="HTML"
+            )
         else:
-            bot.send_message(message.chat.id, "Изображение рецепта не найдено.")
+            ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
+            bot.send_message(
+                message.chat.id,
+                f"<b>{recipe['name']}</b>\n\n<u>Ингредиенты:</u>\n{ingredients_text}\n\n"
+                f"<u>Приготовление:</u>\n{recipe['instructions']}",
+                parse_mode="HTML"
+            )
     else:
         bot.send_message(message.chat.id, "Рецепт дня не найден. Попробуйте позже.")
+
+
 @bot.message_handler(commands=['search'])
 def search(message):
     bot.send_message(message.chat.id, translate(message.text, 'en'))
