@@ -27,14 +27,14 @@ def resize_image(image_path):
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "<b>Привет!</b> Я бот FridgeChef. 👋\n"
+    bot.send_message(message.chat.id, "<b>Привет!👋\n"
                                       "Пиши команду /help чтобы узнать, что я умею", parse_mode="HTML")
 
 
 @bot.message_handler(commands=['help'])
 def help(message):
     bot.send_message(message.chat.id, "💥 Итак, я могу:\n• Найти рецепты по ингредиентам.\n"
-                                      "• Подобрать блюда под вашу диету (кето, веган, ПП и другие).\n"
+                                      "• Подобрать блюда под вашу диету (кето, веган, ПП).\n"
                                       "• Предложить случайный рецепт дня. (/recipe_of_the_day)\n\n"
                                       "<b>Готовьте с удовольствием и без лишних хлопот! ⭐️</b>", parse_mode="HTML")
 
@@ -60,7 +60,7 @@ def random_recipe(message):
 
             bot.send_message(
                 message.chat.id,
-                f"<u>Приготовление:</u>\n{recipe['instructions']}",
+                f"<u>Рецепт:</u>\n{recipe['instructions']}",
                 parse_mode="HTML"
             )
         else:
@@ -68,7 +68,7 @@ def random_recipe(message):
             bot.send_message(
                 message.chat.id,
                 f"<b>{recipe['name']}</b>\n\n<u>Ингредиенты:</u>\n{ingredients_text}\n\n"
-                f"<u>Приготовление:</u>\n{recipe['instructions']}",
+                f"<u>Рецепт:</u>\n{recipe['instructions']}",
                 parse_mode="HTML"
             )
     else:
