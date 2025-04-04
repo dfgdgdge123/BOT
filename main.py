@@ -11,7 +11,7 @@ IMAGE_FOLDER = "images"
 server = 'https://www.themealdb.com/api/json/v1/1/search.php'
 
 bot = telebot.TeleBot(API_TOKEN)
-
+remove = telebot.types.ReplyKeyboardRemove()
 
 def resize_image(image_path):
     with Image.open(image_path) as img:
@@ -68,37 +68,49 @@ def random_recipe(message):
 
 @bot.message_handler(commands=['search'])
 def search(message):
-    bot.send_message(message.chat.id, 'Введите название блюда')
+    bot.send_message(message.chat.id, 'Введите название блюда.')
     bot.register_next_step_handler(message, search_by_name)
 
 
 def search_by_name(message):
-    response = requests.get(server, params={'s': message.text}).json()
-    names = [meal['strMeal'] for meal in response['meals']]
-    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    buttons = [telebot.types.KeyboardButton(text) for text in names]
-    markup.add(*buttons)
-    bot.send_message(message.chat.id, 'Вот, что удалось найти:', reply_markup=markup)
-    bot.register_next_step_handler(message, show_info)
+    response = requests.get(server + '?s=' + message.text).json()
+    if response['meals']:
+        names = [meal['strMeal'] for meal in response['meals']]
+        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+        buttons = [telebot.types.KeyboardButton(text) for text in names]
+        markup.add(*buttons)
+        bot.send_message(message.chat.id, 'Вот, что удалось найти:', reply_markup=markup)
+        bot.register_next_step_handler(message, show_info)
+    else:
+        bot.send_message(message.chat.id, 'Ничего не найдено.', reply_markup=remove)
+
+
+@bot.message_handler()
+def a(message):
+    bot.send_message(message.chat.id, 'Неизвестная команда.', reply_markup=remove)
 
 
 @bot.message_handler()
 def show_info(message):
-    response = requests.get(server, params={'s': message.text}).json()
-    meal = response['meals'][0]
-    response = requests.get(meal['strMealThumb'])
-    img_data = response.content
-    image = Image.open(BytesIO(img_data))
-    name = meal['strMeal']
-    ingredients = '\n'.join(['• ' + meal['strIngredient' + str(i)] for i in range(1, 21) if meal['strIngredient' + str(i)]])
+    response = requests.get(server + '?s=' + message.text).json()
+    if response['meals']:
+        meal = response['meals'][0]
+        response = requests.get(meal['strMealThumb'])
+        img_data = response.content
+        image = Image.open(BytesIO(img_data))
+        name = meal['strMeal']
+        country = meal['strArea']
+        instructions = meal['strInstructions']
+        categ = meal['strCategory']
+        ingredients = [meal['strIngredient' + str(i)] for i in range(1, 21) if meal['strIngredient' + str(i)]]
+        measure_ingredients = '\n'.join(
+            [f"• {meal['strMeasure' + str(i + 1)]} {ingredients[i]}" for i in range(len(ingredients))])
 
-    caption = f"""
-{name}
-
-Ингридиенты:
-{ingredients}
-"""
-    bot.send_photo(message.chat.id, image, caption=caption, parse_mode="HTML")
+        caption = f"{name}\n\nКатегория: {categ}\nСтрана: {country}\n\nИнгридиенты:\n{measure_ingredients}"
+        bot.send_photo(message.chat.id, image, caption=caption, parse_mode="HTML", reply_markup=remove)
+        bot.send_message(message.chat.id, f'Приготовление:\n{instructions}')
+    else:
+        bot.send_message(message.chat.id, 'Произошла ошибка.')
 
 
 bot.polling(none_stop=True)
