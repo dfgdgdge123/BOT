@@ -1,6 +1,6 @@
 import telebot
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day
-from favorites import add_to_favorites, get_favorites, create_favorite_button
+from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
@@ -83,7 +83,8 @@ def show_favorites(message):
     for recipe in favorites:
         markup.add(InlineKeyboardButton(recipe['name'], callback_data=f"show_recipe:{recipe['name']}"))
 
-    bot.send_message(message.chat.id, "⭐ Your favorite recipes:", reply_markup=markup)
+    instruction = "⭐ Your favorite recipes:\n\n❌ To delete a recipe, send me: \"Delete recipe_name\""
+    bot.send_message(message.chat.id, instruction, reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -105,6 +106,13 @@ def callback_handler(call):
             send_recipe(call.message.chat.id, recipe)
         else:
             bot.send_message(call.message.chat.id, "Recipe not found")
+
+
+@bot.message_handler(func=lambda message: message.text.lower().startswith('delete '))
+def handle_delete_favorite(message):
+    recipe_name = message.text[7:].strip()
+    remove_from_favorites(message.from_user.id, recipe_name)
+    bot.send_message(message.chat.id, f"Recipe '{recipe_name}' has been removed from favorites!")
 
 
 bot.polling(none_stop=True)
