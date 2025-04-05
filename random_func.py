@@ -1,81 +1,24 @@
-# random_func.py
 import random
 import datetime
 import requests
 from PIL import Image
 import io
-from deep_translator import GoogleTranslator
-import re
 
 recipe_of_the_day = None
 last_updated = None
 
-UNIT_TRANSLATIONS = {
-    'cup': 'стакан',
-    'tablespoon': 'столовая ложка',
-    'teaspoon': 'чайная ложка',
-    'ounce': 'унция',
-    'pound': 'фунт',
-    'gram': 'грамм',
-    'G': 'грамм',
-    'g': 'грамм',
-    'kilogram': 'килограмм',
-    'milliliter': 'миллилитр',
-    'liter': 'литр',
-    'pinch': 'щепотка',
-    'clove': 'зубчик',
-    'slice': 'ломтик',
-    'piece': 'штука',
-    'can': 'банка'
-}
-
-
-def translate_to_russian(text):
-    if not text or not isinstance(text, str):
-        return text
-
-    if any('\u0400' <= c <= '\u04FF' for c in text):
-        return text
-
-    try:
-        for eng_unit, ru_unit in UNIT_TRANSLATIONS.items():
-            text = re.sub(rf'\b{eng_unit}\b', ru_unit, text, flags=re.IGNORECASE)
-
-        sentences = re.split(r'(?<=[.!?])\s+', text)
-        translated_sentences = []
-
-        for sentence in sentences:
-            if len(sentence) < 3:
-                translated_sentences.append(sentence)
-                continue
-
-            try:
-                translated = GoogleTranslator(source='auto', target='ru').translate(sentence)
-                if translated and translated != sentence:
-                    translated_sentences.append(translated)
-                else:
-                    translated_sentences.append(sentence)
-            except Exception:
-                translated_sentences.append(sentence)
-
-        return ' '.join(translated_sentences)
-    except Exception as e:
-        print(f"Ошибка перевода: {e}")
-        return text
-
-
 local_recipes = [
     {
-        "name": "Паста Карбонара",
+        "name": "Pasta Carbonara",
         "image_bytes": None,
-        "instructions": "Рецепт классической карбонары (на 4 порции):\n\n"
-                        "1. Сварите спагетти в подсоленной воде с оливковым маслом до состояния 'аль денте'.\n"
-                        "2. Нарежьте бекон тонкими полосками, чеснок измельчите.\n"
-                        "3. Обжарьте бекон с чесноком на сковороде до румяности.\n"
-                        "4. Натрите сыр, добавьте горячую воду от спагетти, взбейте желтки и смешайте с сыром.\n"
-                        "5. Слейте воду со спагетти, добавьте к ним сырно-яичную смесь и бекон.\n"
-                        "6. Перемешайте, приправьте солью и перцем. Подавайте горячим.",
-        "ingredients": ["спагетти - 400 г", "бекон - 150 г", "яйца - 4 шт", "сыр Пармезан - 50 г"]
+        "instructions": "Classic carbonara recipe (for 4 servings):\n\n"
+                        "1. Cook spaghetti in salted water with olive oil until al dente.\n"
+                        "2. Cut bacon into thin strips, chop garlic.\n"
+                        "3. Fry bacon with garlic in a pan until golden brown.\n"
+                        "4. Grate cheese, add hot water from spaghetti, beat egg yolks and mix with cheese.\n"
+                        "5. Drain spaghetti, add cheese-egg mixture and bacon.\n"
+                        "6. Mix well, season with salt and pepper. Serve hot.",
+        "ingredients": ["spaghetti - 400g", "bacon - 150g", "eggs - 4", "Parmesan cheese - 50g"]
     },
 ]
 
@@ -107,33 +50,21 @@ def get_random_recipe_from_api():
         image_response.raise_for_status()
         image_bytes = process_image(image_response.content)
 
-        name = meal['strMeal']
-        if not any('\u0400' <= c <= '\u04FF' for c in name):  # Если нет кириллицы
-            name = translate_to_russian(name)
-
         ingredients = []
         for i in range(1, 21):
             ingredient = meal.get(f'strIngredient{i}', '').strip()
             measure = meal.get(f'strMeasure{i}', '').strip()
-
             if ingredient:
-                ing_str = f"{measure} {ingredient}".strip()
-                if not any('\u0400' <= c <= '\u04FF' for c in ing_str):
-                    ing_str = translate_to_russian(ing_str)
-                ingredients.append(ing_str)
-
-        instructions = meal['strInstructions']
-        if not any('\u0400' <= c <= '\u04FF' for c in instructions):
-            instructions = translate_to_russian(instructions)
+                ingredients.append(f"{measure} {ingredient}".strip())
 
         return {
-            "name": name,
+            "name": meal['strMeal'],
             "image_bytes": image_bytes,
-            "instructions": instructions,
-            "ingredients": [ing for ing in ingredients if ing]  # Удаляем пустые
+            "instructions": meal['strInstructions'],
+            "ingredients": [ing for ing in ingredients if ing]
         }
     except Exception as e:
-        print(f"Ошибка API: {e}")
+        print(f"API error: {e}")
         return None
 
 
