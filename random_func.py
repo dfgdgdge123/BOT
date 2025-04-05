@@ -58,6 +58,7 @@ def get_random_recipe_from_api():
                 ingredients.append(f"{measure} {ingredient}".strip())
 
         return {
+            "id": meal['idMeal'],  # Добавляем ID рецепта
             "name": meal['strMeal'],
             "image_bytes": image_bytes,
             "instructions": meal['strInstructions'],
