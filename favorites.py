@@ -10,7 +10,7 @@ def add_to_favorites(user_id, recipe):
         if str(user_id) not in db:
             db[str(user_id)] = []
 
-        # Проверяем, нет ли уже этого рецепта в избранном
+        # Проверяем нет ли уже этого рецепта в избранном
         if not any(r['name'] == recipe['name'] for r in db[str(user_id)]):
             db[str(user_id)] = db[str(user_id)] + [recipe]
 
