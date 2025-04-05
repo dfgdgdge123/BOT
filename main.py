@@ -83,8 +83,12 @@ def show_favorites(message):
     for recipe in favorites:
         markup.add(InlineKeyboardButton(recipe['name'], callback_data=f"show_recipe:{recipe['name']}"))
 
-    instruction = "⭐ Your favorite recipes:\n\n❌ To delete a recipe, send me: \"Delete recipe_name\""
-    bot.send_message(message.chat.id, instruction, reply_markup=markup)
+    instruction = (
+        "⭐ <b>Your favorite recipes:</b>\n\n"
+        "To delete a recipe, send:\n"
+        "<code>Delete Recipe_Name</code>\n\n"
+    )
+    bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -110,9 +114,21 @@ def callback_handler(call):
 
 @bot.message_handler(func=lambda message: message.text.lower().startswith('delete '))
 def handle_delete_favorite(message):
+    user_id = message.from_user.id
     recipe_name = message.text[7:].strip()
-    remove_from_favorites(message.from_user.id, recipe_name)
-    bot.send_message(message.chat.id, f"Recipe '{recipe_name}' has been removed from favorites!")
+
+    favorites = get_favorites(user_id)
+    recipe_exists = any(r['name'].lower() == recipe_name.lower() for r in favorites)
+
+    if recipe_exists:
+        remove_from_favorites(user_id, recipe_name)
+        bot.send_message(message.chat.id, f"✅ Recipe '{recipe_name}' has been removed from favorites!")
+    else:
+        bot.send_message(
+            message.chat.id,
+            f"❌ Recipe '{recipe_name}' not found in your favorites.\n\nUse /favorites to see your list.",
+            parse_mode="HTML"
+        )
 
 
 bot.polling(none_stop=True)
