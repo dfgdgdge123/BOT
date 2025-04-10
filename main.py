@@ -12,7 +12,15 @@ def start(message):
                                       "Type /help to see what I can do", parse_mode="HTML")
 
 
-@bot.message_handler(commands=['help'])
+@bot.message_handler(commands=['search'])
+def search(message):
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton('Name'))
+    markup.add(InlineKeyboardButton('Category'))
+    markup.add(InlineKeyboardButton('Country'))
+    markup.add(InlineKeyboardButton('Ingredient'))
+    bot.send_message(message.chat.id, 'Search by:')
+
 def help(message):
     bot.send_message(message.chat.id, "💥 Here's what I can do:\n• Find recipes by criteria\n"
                                       "(ingredients, diet, country) (/search)\n"
@@ -22,6 +30,7 @@ def help(message):
                                       "<b>Enjoy cooking with ease! ⭐️</b>", parse_mode="HTML")
 
 
+@bot.message_handler(commands=['help'])
 def send_recipe(chat_id, recipe, show_favorite_button=False):
     ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
 
