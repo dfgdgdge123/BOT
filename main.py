@@ -1,116 +1,134 @@
 import telebot
-import os
-import requests
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day
-from PIL import Image
-from translator import translate
-from io import BytesIO
+from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-API_TOKEN = '8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M'
-IMAGE_FOLDER = "images"
-server = 'https://www.themealdb.com/api/json/v1/1/search.php'
-
-bot = telebot.TeleBot(API_TOKEN)
-remove = telebot.types.ReplyKeyboardRemove()
-
-def resize_image(image_path):
-    with Image.open(image_path) as img:
-        if img.format not in ['JPEG', 'JPG']:
-            image_path = image_path.rsplit('.', 1)[0] + '.jpg'
-            img = img.convert('RGB')
-
-        if img.width < 320 or img.height < 320:
-            new_size = (max(320, img.width), max(320, img.height))
-            img = img.resize(new_size, Image.Resampling.LANCZOS)
-
-        img.save(image_path, 'JPEG')
-
-    return image_path
+bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "<b>Привет!</b> Я бот FridgeChef. 👋\n"
-                                      "Пиши команду /help чтобы узнать, что я умею", parse_mode="HTML")
+    bot.send_message(message.chat.id, "<b>Hello!👋</b>\n"
+                                      "Type /help to see what I can do", parse_mode="HTML")
 
 
 @bot.message_handler(commands=['help'])
 def help(message):
-    bot.send_message(message.chat.id, "💥 Итак, я могу:\n• Найти рецепты по ингредиентам.\n"
-                                      "• Подобрать блюда под вашу диету (кето, веган, ПП и другие).\n"
-                                      "• Предложить случайный рецепт дня. (/recipe_of_the_day)\n\n"
-                                      "<b>Готовьте с удовольствием и без лишних хлопот! ⭐️</b>", parse_mode="HTML")
+    bot.send_message(message.chat.id, "💥 Here's what I can do:\n• Find recipes by criteria\n"
+                                      "(ingredients, diet, country) (/search)\n"
+                                      "• Suggest a random recipe of the day (/recipe_of_the_day)\n"
+                                      "• Show your favorite dishes (/favorites)\n"
+                                      "• Open your recipe history (/history)\n\n"
+                                      "<b>Enjoy cooking with ease! ⭐️</b>", parse_mode="HTML")
+
+
+def send_recipe(chat_id, recipe, show_favorite_button=False):
+    ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
+
+    if "image_bytes" in recipe and recipe["image_bytes"]:
+        recipe["image_bytes"].seek(0)
+        if show_favorite_button:
+            markup = create_favorite_button()
+            bot.send_photo(
+                chat_id,
+                recipe["image_bytes"],
+                caption=f"<b>{recipe['name']}</b>\n\n<u>Ingredients:</u>\n{ingredients_text}",
+                parse_mode="HTML",
+                reply_markup=markup
+            )
+        else:
+            bot.send_photo(
+                chat_id,
+                recipe["image_bytes"],
+                caption=f"<b>{recipe['name']}</b>\n\n<u>Ingredients:</u>\n{ingredients_text}",
+                parse_mode="HTML"
+            )
+    else:
+        bot.send_message(
+            chat_id,
+            f"<b>{recipe['name']}</b>\n\n<u>Ingredients:</u>\n{ingredients_text}",
+            parse_mode="HTML"
+        )
+
+    instructions = recipe.get('instructions', 'No instructions available')
+    chunk_size = 4000
+    for i in range(0, len(instructions), chunk_size):
+        chunk = instructions[i:i + chunk_size]
+        if i == 0:
+            bot.send_message(chat_id, f"<u>Recipe:</u>\n{chunk}", parse_mode="HTML")
+        else:
+            bot.send_message(chat_id, chunk, parse_mode="HTML")
 
 
 @bot.message_handler(commands=['recipe_of_the_day'])
 def random_recipe(message):
     update_recipe_of_the_day()
-    recipe_of_the_day = get_recipe_of_the_day()
+    recipe = get_recipe_of_the_day()
 
-    if recipe_of_the_day:
-        image_path = os.path.join(IMAGE_FOLDER, recipe_of_the_day["image"])
+    if recipe:
+        send_recipe(message.chat.id, recipe, show_favorite_button=True)
+    else:
+        bot.send_message(message.chat.id, "Recipe of the day not found. Please try again later.")
 
-        if os.path.exists(image_path):
-            image_path = resize_image(image_path)
 
-            name = recipe_of_the_day['name']
-            instructions = recipe_of_the_day['instructions']
+@bot.message_handler(commands=['favorites'])
+def show_favorites(message):
+    favorites = get_favorites(message.from_user.id)
 
-            caption = f"<b>{name}</b>\n\n{instructions}"
+    if not favorites:
+        bot.send_message(message.chat.id, "Your favorites list is empty.")
+        return
 
-            with open(image_path, 'rb') as photo:
-                bot.send_photo(message.chat.id, photo, caption=caption, parse_mode="HTML")
+    markup = InlineKeyboardMarkup()
+    for recipe in favorites:
+        markup.add(InlineKeyboardButton(recipe['name'], callback_data=f"show_recipe:{recipe['name']}"))
+
+    instruction = (
+        "⭐ <b>Your favorite recipes:</b>\n\n"
+        "To delete a recipe, send:\n"
+        "<code>Delete Recipe_Name</code>\n\n"
+    )
+    bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_handler(call):
+    if call.data == "add_to_favorites":
+        recipe = get_recipe_of_the_day()
+        if recipe:
+            add_to_favorites(call.from_user.id, recipe)
+            bot.answer_callback_query(call.id, "Recipe added to favorites!")
         else:
-            bot.send_message(message.chat.id, "Изображение рецепта не найдено.")
+            bot.answer_callback_query(call.id, "Error adding to favorites")
+
+    elif call.data.startswith("show_recipe:"):
+        recipe_name = call.data.split(":")[1]
+        favorites = get_favorites(call.from_user.id)
+        recipe = next((r for r in favorites if r['name'] == recipe_name), None)
+
+        if recipe:
+            send_recipe(call.message.chat.id, recipe)
+        else:
+            bot.send_message(call.message.chat.id, "Recipe not found")
+
+
+@bot.message_handler(func=lambda message: message.text.lower().startswith('delete '))
+def handle_delete_favorite(message):
+    user_id = message.from_user.id
+    recipe_name = message.text[7:].strip()
+
+    favorites = get_favorites(user_id)
+    recipe_exists = any(r['name'].lower() == recipe_name.lower() for r in favorites)
+
+    if recipe_exists:
+        remove_from_favorites(user_id, recipe_name)
+        bot.send_message(message.chat.id, f"✅ Recipe '{recipe_name}' has been removed from favorites!")
     else:
-        bot.send_message(message.chat.id, "Рецепт дня не найден. Попробуйте позже.")
-
-
-@bot.message_handler(commands=['search'])
-def search(message):
-    bot.send_message(message.chat.id, 'Введите название блюда.')
-    bot.register_next_step_handler(message, search_by_name)
-
-
-def search_by_name(message):
-    response = requests.get(server + '?s=' + message.text).json()
-    if response['meals']:
-        names = [meal['strMeal'] for meal in response['meals']]
-        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-        buttons = [telebot.types.KeyboardButton(text) for text in names]
-        markup.add(*buttons)
-        bot.send_message(message.chat.id, 'Вот, что удалось найти:', reply_markup=markup)
-        bot.register_next_step_handler(message, show_info)
-    else:
-        bot.send_message(message.chat.id, 'Ничего не найдено.', reply_markup=remove)
-
-
-@bot.message_handler()
-def a(message):
-    bot.send_message(message.chat.id, 'Неизвестная команда.', reply_markup=remove)
-
-
-@bot.message_handler()
-def show_info(message):
-    response = requests.get(server + '?s=' + message.text).json()
-    if response['meals']:
-        meal = response['meals'][0]
-        response = requests.get(meal['strMealThumb'])
-        img_data = response.content
-        image = Image.open(BytesIO(img_data))
-        name = meal['strMeal']
-        country = meal['strArea']
-        instructions = meal['strInstructions']
-        categ = meal['strCategory']
-        ingredients = [meal['strIngredient' + str(i)] for i in range(1, 21) if meal['strIngredient' + str(i)]]
-        measure_ingredients = '\n'.join(
-            [f"• {meal['strMeasure' + str(i + 1)]} {ingredients[i]}" for i in range(len(ingredients))])
-
-        caption = f"{name}\n\nКатегория: {categ}\nСтрана: {country}\n\nИнгридиенты:\n{measure_ingredients}"
-        bot.send_photo(message.chat.id, image, caption=caption, parse_mode="HTML", reply_markup=remove)
-        bot.send_message(message.chat.id, f'Приготовление:\n{instructions}')
-    else:
-        bot.send_message(message.chat.id, 'Произошла ошибка.')
+        bot.send_message(
+            message.chat.id,
+            f"❌ Recipe '{recipe_name}' not found in your favorites.\n\nUse /favorites to see your list.",
+            parse_mode="HTML"
+        )
 
 
 bot.polling(none_stop=True)

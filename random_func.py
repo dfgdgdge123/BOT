@@ -1,80 +1,80 @@
 import random
 import datetime
+import requests
+from PIL import Image
+import io
 
 recipe_of_the_day = None
 last_updated = None
 
-recipes = [
+local_recipes = [
     {
-        "name": "Паста Карбонара",
-        "image": "carbonara.jpg",
-        "instructions": "Рецепт классической карбонары (на 4 порции):\n\n"
-                        "Ингредиенты:\n"
-                        "• спагетти — 500 г;\n"
-                        "• оливковое масло — 6 ст. л.;\n"
-                        "• сырокопчёный бекон или грудинка — 300 г;\n"
-                        "• чеснок — 1 зубчик;\n"
-                        "• твёрдый сыр — 100 г;\n"
-                        "• желтки — 6 шт.;\n"
-                        "• соль, свежемолотый чёрный перец — по вкусу.\n\n"
-                        "Приготовление:\n"
-                        "1. Сварите спагетти в подсоленной воде с оливковым маслом до состояния 'аль денте'.\n"
-                        "2. Нарежьте бекон тонкими полосками, чеснок измельчите.\n"
-                        "3. Обжарьте бекон с чесноком на сковороде до румяности.\n"
-                        "4. Натрите сыр, добавьте горячую воду от спагетти, взбейте желтки и смешайте с сыром.\n"
-                        "5. Слейте воду со спагетти, добавьте к ним сырно-яичную смесь и бекон.\n"
-                        "6. Перемешайте, приправьте солью и перцем. Подавайте горячим."
+        "name": "Pasta Carbonara",
+        "image_bytes": None,
+        "instructions": "Classic carbonara recipe (for 4 servings):\n\n"
+                        "1. Cook spaghetti in salted water with olive oil until al dente.\n"
+                        "2. Cut bacon into thin strips, chop garlic.\n"
+                        "3. Fry bacon with garlic in a pan until golden brown.\n"
+                        "4. Grate cheese, add hot water from spaghetti, beat egg yolks and mix with cheese.\n"
+                        "5. Drain spaghetti, add cheese-egg mixture and bacon.\n"
+                        "6. Mix well, season with salt and pepper. Serve hot.",
+        "ingredients": ["spaghetti - 400g", "bacon - 150g", "eggs - 4", "Parmesan cheese - 50g"]
     },
-    {
-        "name": "Омлет с помидорами",
-        "image": "eggs.jpg",
-        "instructions": "Рецепт омлета с помидорами (на 2 порции):\n\n"
-                        "Ингредиенты:\n"
-                        "• помидоры свежие — 200 г;\n"
-                        "• твёрдый сыр — 150 г;\n"
-                        "• майонез — 25 г;\n"
-                        "• яйца куриные — 3 шт.;\n"
-                        "• молоко — 150 мл;\n"
-                        "• соль — 5 г;\n"
-                        "• чёрный молотый перец — 5 г;\n"
-                        "• подсолнечное масло — 15 г.\n\n"
-                        "Приготовление:\n"
-                        "1. Взбейте яйца с майонезом, солью и перцем, добавьте молоко и перемешайте.\n"
-                        "2. Натерите сыр, нарежьте помидоры и добавьте их к яичной массе.\n"
-                        "3. Разогрейте сковороду с маслом, вылейте смесь и готовьте на медленном огне 10–15 минут.\n"
-                        "4. Подавайте горячим, можно использовать черри или другой сыр по вкусу."
-    },
-    {
-        "name": "Салат Цезарь",
-        "image": "salad.jpeg",
-        "instructions": "Рецепт салата Цезарь:\n\n"
-                        "Ингредиенты:\n"
-                        "• куриная грудка — 1 шт. (400 г);\n"
-                        "• пекинская капуста — 1 шт.;\n"
-                        "• помидоры черри — 150–200 г;\n"
-                        "• твёрдый сыр (желательно пармезан) — 50–70 г;\n"
-                        "• белый хлеб — 3–4 ломтика;\n"
-                        "• соль — по вкусу;\n"
-                        "• оливковое масло — 6 ст. л. (для жарки);\n"
-                        "• перец чёрный молотый — 1 ч. л.;\n"
-                        "• чеснок — 4 зубчика;\n"
-                        "• майонез — 3–4 ст. л.\n\n"
-                        "Приготовление:\n"
-                        "1. Нарежьте куриную грудку и обжарьте до готовности.\n"
-                        "2. Нарежьте хлеб кубиками, обжарьте с чесноком до золотистой корочки.\n"
-                        "3. Нарежьте пекинскую капусту, натрите сыр и подготовьте черри.\n"
-                        "4. Смешайте майонез с чесноком для заправки.\n"
-                        "5. Соедините все ингредиенты, заправьте и подавайте."
-    }
 ]
 
+
+def process_image(image_bytes):
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        if img.width > 1024 or img.height > 1024:
+            img.thumbnail((1024, 1024))
+
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=85)
+        output.seek(0)
+        return output
+    except Exception:
+        return None
+
+
+def get_random_recipe_from_api():
+    try:
+        response = requests.get('https://www.themealdb.com/api/json/v1/1/random.php', timeout=10)
+        response.raise_for_status()
+        meal = response.json()['meals'][0]
+
+        image_response = requests.get(meal['strMealThumb'], timeout=10)
+        image_response.raise_for_status()
+        image_bytes = process_image(image_response.content)
+
+        ingredients = []
+        for i in range(1, 21):
+            ingredient = meal.get(f'strIngredient{i}', '').strip()
+            measure = meal.get(f'strMeasure{i}', '').strip()
+            if ingredient:
+                ingredients.append(f"{measure} {ingredient}".strip())
+
+        return {
+            "id": meal['idMeal'],  # Добавим ID рецепта
+            "name": meal['strMeal'],
+            "image_bytes": image_bytes,
+            "instructions": meal['strInstructions'],
+            "ingredients": [ing for ing in ingredients if ing]
+        }
+    except Exception as e:
+        print(f"API error: {e}")
+        return None
 
 
 def update_recipe_of_the_day():
     global recipe_of_the_day, last_updated
     today = datetime.date.today()
     if last_updated != today:
-        recipe_of_the_day = random.choice(recipes)
+        api_recipe = get_random_recipe_from_api()
+        recipe_of_the_day = api_recipe if api_recipe else random.choice(local_recipes)
         last_updated = today
 
 
