@@ -1,3 +1,4 @@
+import requests
 import telebot
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
@@ -14,12 +15,19 @@ def start(message):
 
 @bot.message_handler(commands=['search'])
 def search(message):
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton('Name'))
-    markup.add(InlineKeyboardButton('Category'))
-    markup.add(InlineKeyboardButton('Country'))
-    markup.add(InlineKeyboardButton('Ingredient'))
-    bot.send_message(message.chat.id, 'Search by:')
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(InlineKeyboardButton('Name', callback_data='name'),
+               InlineKeyboardButton('Category', callback_data='category'), InlineKeyboardButton('Country', callback_data='country'),
+               InlineKeyboardButton('Ingredient', callback_data='ingredient'))
+    bot.send_message(message.chat.id, 'Search by:', reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ['name', 'category', 'country', 'ingredient'])
+def search_by_name(call):
+    response = requests.get('https://www.themealdb.com/api/json/v1/1/search.php?s=' + call.data).json()
+    print(response)
+    print(call)
+
 
 def help(message):
     bot.send_message(message.chat.id, "💥 Here's what I can do:\n• Find recipes by criteria\n"
