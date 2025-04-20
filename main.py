@@ -14,21 +14,40 @@ def start(message):
 
 
 @bot.message_handler(commands=['search'])
-def search(message):
+def search_processing(message):
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(InlineKeyboardButton('Name', callback_data='name'),
-               InlineKeyboardButton('Category', callback_data='category'), InlineKeyboardButton('Country', callback_data='country'),
+               InlineKeyboardButton('Category', callback_data='category'),
+               InlineKeyboardButton('Country', callback_data='country'),
                InlineKeyboardButton('Ingredient', callback_data='ingredient'))
     bot.send_message(message.chat.id, 'Search by:', reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: call.data in ['name', 'category', 'country', 'ingredient'])
-def search_by_name(call):
-    response = requests.get('https://www.themealdb.com/api/json/v1/1/search.php?s=' + call.data).json()
-    print(response)
-    print(call)
+def search(call):
+    if call.data == 'name':
+        bot.send_message(call.message.chat.id, 'Enter the name of the food:')
+        bot.register_next_step_handler(call.message, search_by_name)
 
 
+def search_by_name(message):
+    server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
+    print(message.text)
+
+
+def search_by_category(message):
+    server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
+
+
+def search_by_country(message):
+    server = 'https://www.themealdb.com/api/json/v1/1/filter.php?a=Canadian'
+
+
+def search_by_ingredient(message):
+    pass
+
+
+@bot.message_handler(commands=['help'])
 def help(message):
     bot.send_message(message.chat.id, "💥 Here's what I can do:\n• Find recipes by criteria\n"
                                       "(ingredients, diet, country) (/search)\n"
@@ -38,7 +57,6 @@ def help(message):
                                       "<b>Enjoy cooking with ease! ⭐️</b>", parse_mode="HTML")
 
 
-@bot.message_handler(commands=['help'])
 def send_recipe(chat_id, recipe, show_favorite_button=False):
     ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
 
