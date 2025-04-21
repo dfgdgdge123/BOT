@@ -28,19 +28,41 @@ def search(call):
     if call.data == 'name':
         bot.send_message(call.message.chat.id, 'Enter the name of the food:')
         bot.register_next_step_handler(call.message, search_by_name)
+    elif call.data == 'category':
+        bot.send_message(call.message.chat.id, 'Enter the category of the food:')
+        bot.register_next_step_handler(call.message, search_by_category)
+    elif call.data == 'country':
+        bot.send_message(call.message.chat.id, 'Enter the country of the food:')
+        bot.register_next_step_handler(call.message, search_by_country)
+    elif call.data == 'ingredient':
+        bot.send_message(call.message.chat.id, 'Enter the name of the food:')
+        bot.register_next_step_handler(call.message, search_by_ingredient)
 
 
 def search_by_name(message):
     server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
-    print(message.text)
+    if not command_handler(message):
+        response = requests.get(server + message.text).json()
+        if response['meals']:
+            pass
+        else:
+            bot.send_message(message.chat.id, 'Try again')
+            bot.register_next_step_handler(message, search_by_name)
 
 
 def search_by_category(message):
     server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
+    if not command_handler(message):
+        response = requests.get(server + message.text).json()
+        if response['meals']:
+            pass
+        else:
+            bot.send_message(message.chat.id, 'Try again')
+            bot.register_next_step_handler(message, search_by_name)
 
 
 def search_by_country(message):
-    server = 'https://www.themealdb.com/api/json/v1/1/filter.php?a=Canadian'
+    server = 'https://www.themealdb.com/api/json/v1/1/filter.php?a='
 
 
 def search_by_ingredient(message):
@@ -164,6 +186,19 @@ def handle_delete_favorite(message):
             f"❌ Recipe '{recipe_name}' not found in your favorites.\n\nUse /favorites to see your list.",
             parse_mode="HTML"
         )
+
+
+def command_handler(message):
+    commands = {
+        '/start': start,
+        '/help': help,
+        '/search': search_processing,
+        '/recipe_of_the_day': random_recipe,
+        '/favorites': show_favorites
+    }
+    if message.text in commands:
+        commands[message.text](message)
+        return True
 
 
 bot.polling(none_stop=True)
