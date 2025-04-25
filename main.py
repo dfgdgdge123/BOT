@@ -2,7 +2,7 @@ import requests
 import telebot
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
 
@@ -44,7 +44,11 @@ def search_by_name(message):
     if not command_handler(message):
         response = requests.get(server + message.text).json()
         if response['meals']:
-            pass
+            markup = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+            for meal in response['meals']:
+                name = KeyboardButton(text=meal['strMeal'])
+                markup.add(name)
+            bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=markup)
         else:
             bot.send_message(message.chat.id, 'Try again')
             bot.register_next_step_handler(message, search_by_name)
