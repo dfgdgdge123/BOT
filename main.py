@@ -1,6 +1,6 @@
 import requests
 import telebot
-from random_func import update_recipe_of_the_day, get_recipe_of_the_day
+from random_func import update_recipe_of_the_day, get_recipe_of_the_day, process_image
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
@@ -29,7 +29,8 @@ def search(call):
         bot.send_message(call.message.chat.id, 'Enter the name of the food:')
         bot.register_next_step_handler(call.message, search_by_name)
     elif call.data == 'category':
-        bot.send_message(call.message.chat.id, 'Enter the category of the food:')
+        bot.send_message(call.message.chat.id, 'Choose the category of the food:')
+        response = requests.get('https://www.themealdb.com/api/json/v1/1/categories.php').json()
         bot.register_next_step_handler(call.message, search_by_category)
     elif call.data == 'country':
         bot.send_message(call.message.chat.id, 'Enter the country of the food:')
@@ -40,18 +41,40 @@ def search(call):
 
 
 def search_by_name(message):
-    server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
     if not command_handler(message):
+        server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
         response = requests.get(server + message.text).json()
         if response['meals']:
-            markup = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+            markup = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
             for meal in response['meals']:
                 name = KeyboardButton(text=meal['strMeal'])
                 markup.add(name)
             bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=markup)
+            bot.register_next_step_handler(message, get_name)
         else:
-            bot.send_message(message.chat.id, 'Try again')
+            bot.send_message(message.chat.id, 'Nothing found. Try again.')
             bot.register_next_step_handler(message, search_by_name)
+
+
+def get_name(message):
+    if not command_handler(message):
+        server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
+        meal = requests.get(server + message.text).json()['meals'][0]
+        img_data = requests.get(meal['strMealThumb']).content
+        image = process_image(img_data)
+        ingredients = []
+        for i in range(1, 21):
+            ingredient = meal.get(f'strIngredient{i}', '').strip()
+            measure = meal.get(f'strMeasure{i}', '').strip()
+            if ingredient:
+                ingredients.append(f"{measure} {ingredient}".strip())
+        recipe = {
+            "id": meal['idMeal'],
+            "name": meal['strMeal'],
+            "image_bytes": image,
+            "instructions": meal['strInstructions'],
+            "ingredients": [ing for ing in ingredients if ing]}
+        send_recipe(message.chat.id, recipe)
 
 
 def search_by_category(message):
