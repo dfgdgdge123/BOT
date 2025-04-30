@@ -29,9 +29,7 @@ def search(call):
         bot.send_message(call.message.chat.id, 'Enter the name of the food:')
         bot.register_next_step_handler(call.message, search_by_name)
     elif call.data == 'category':
-        bot.send_message(call.message.chat.id, 'Choose the category of the food:')
-        response = requests.get('https://www.themealdb.com/api/json/v1/1/categories.php').json()
-        bot.register_next_step_handler(call.message, search_by_category)
+        search_by_category(call.message)
     elif call.data == 'country':
         bot.send_message(call.message.chat.id, 'Enter the country of the food:')
         bot.register_next_step_handler(call.message, search_by_country)
@@ -45,11 +43,11 @@ def search_by_name(message):
         server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
         response = requests.get(server + message.text).json()
         if response['meals']:
-            markup = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+            keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
             for meal in response['meals']:
                 name = KeyboardButton(text=meal['strMeal'])
-                markup.add(name)
-            bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=markup)
+                keyboard.add(name)
+            bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
             bot.register_next_step_handler(message, get_name)
         else:
             bot.send_message(message.chat.id, 'Nothing found. Try again.')
@@ -78,14 +76,26 @@ def get_name(message):
 
 
 def search_by_category(message):
-    server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
+    server = 'https://www.themealdb.com/api/json/v1/1/list.php?c=list'
+    response = requests.get(server).json()
+    keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+    for category in response['meals']:
+        button = KeyboardButton(category['strCategory'])
+        keyboard.add(button)
+    bot.send_message(message.chat.id, "Choose the category of the food:", reply_markup=keyboard)
+    bot.register_next_step_handler(message, get_category)
+
+
+def get_category(message):
     if not command_handler(message):
+        server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
         response = requests.get(server + message.text).json()
-        if response['meals']:
-            pass
-        else:
-            bot.send_message(message.chat.id, 'Try again')
-            bot.register_next_step_handler(message, search_by_name)
+        keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+        for meal in response['meals']:
+            name = KeyboardButton(text=meal['strMeal'])
+            keyboard.add(name)
+        bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
+        bot.register_next_step_handler(message, get_name)
 
 
 def search_by_country(message):
