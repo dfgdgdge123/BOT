@@ -2,9 +2,11 @@ import requests
 import telebot
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day, process_image
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, \
+    ReplyKeyboardRemove
 
 bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
+remove = ReplyKeyboardRemove()
 
 
 @bot.message_handler(commands=['start'])
@@ -43,7 +45,7 @@ def search_by_name(message):
         server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
         response = requests.get(server + message.text).json()
         if response['meals']:
-            keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+            keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
             for meal in response['meals']:
                 name = KeyboardButton(text=meal['strMeal'])
                 keyboard.add(name)
@@ -62,10 +64,10 @@ def get_name(message):
         image = process_image(img_data)
         ingredients = []
         for i in range(1, 21):
-            ingredient = meal.get(f'strIngredient{i}', '').strip()
-            measure = meal.get(f'strMeasure{i}', '').strip()
+            ingredient = meal.get(f'strIngredient{i}', '')
+            measure = meal.get(f'strMeasure{i}', '')
             if ingredient:
-                ingredients.append(f"{measure} {ingredient}".strip())
+                ingredients.append(f"{measure.strip()} {ingredient.strip()}".strip())
         recipe = {
             "id": meal['idMeal'],
             "name": meal['strMeal'],
@@ -78,7 +80,7 @@ def get_name(message):
 def search_by_category(message):
     server = 'https://www.themealdb.com/api/json/v1/1/list.php?c=list'
     response = requests.get(server).json()
-    keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+    keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
     for category in response['meals']:
         button = KeyboardButton(category['strCategory'])
         keyboard.add(button)
@@ -90,7 +92,7 @@ def get_category(message):
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
         response = requests.get(server + message.text).json()
-        keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+        keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
         for meal in response['meals']:
             name = KeyboardButton(text=meal['strMeal'])
             keyboard.add(name)
@@ -135,7 +137,7 @@ def send_recipe(chat_id, recipe, show_favorite_button=False):
                 chat_id,
                 recipe["image_bytes"],
                 caption=f"<b>{recipe['name']}</b>\n\n<u>Ingredients:</u>\n{ingredients_text}",
-                parse_mode="HTML"
+                parse_mode="HTML", reply_markup=remove
             )
     else:
         bot.send_message(
