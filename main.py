@@ -2,17 +2,15 @@ import requests
 import telebot
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day, process_image
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, \
-    ReplyKeyboardRemove
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
-remove = ReplyKeyboardRemove()
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, "<b>Hello!👋</b>\n"
-                                      "Type /help to see what I can do", parse_mode="HTML")
+                                      "Type /help to see what I can do", parse_mode="HTML", reply_markup=None)
 
 
 @bot.message_handler(commands=['search'])
@@ -28,14 +26,17 @@ def search_processing(message):
 @bot.callback_query_handler(func=lambda call: call.data in ['name', 'category', 'country', 'ingredient'])
 def search(call):
     if call.data == 'name':
-        bot.send_message(call.message.chat.id, 'Enter the name of the food:')
+        bot.send_message(call.message.chat.id, 'Enter the name of the food:', reply_markup=None)
         bot.register_next_step_handler(call.message, search_by_name)
+
     elif call.data == 'category':
         search_by_category(call.message)
+
     elif call.data == 'country':
         search_by_country(call.message)
+
     elif call.data == 'ingredient':
-        bot.send_message(call.message.chat.id, 'Enter the name of the food:')
+        bot.send_message(call.message.chat.id, 'Enter the name of the food:', reply_markup=None)
         bot.register_next_step_handler(call.message, search_by_ingredient)
 
 
@@ -43,47 +44,61 @@ def search_by_name(message):
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
         response = requests.get(server + message.text).json()
+
         if response['meals']:
             keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+            names = []
+
             for meal in response['meals']:
                 name = KeyboardButton(text=meal['strMeal'])
                 keyboard.add(name)
+                names.append(name)
+
             bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
-            bot.register_next_step_handler(message, get_name)
+            bot.register_next_step_handler(message, get_name, names)
         else:
             bot.send_message(message.chat.id, 'Nothing found. Try again.')
             bot.register_next_step_handler(message, search_by_name)
 
 
-def get_name(message):
+def get_name(message, names):
     if not command_handler(message):
-        server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
-        meal = requests.get(server + message.text).json()['meals'][0]
-        img_data = requests.get(meal['strMealThumb']).content
-        image = process_image(img_data)
-        ingredients = []
-        for i in range(1, 21):
-            ingredient = meal.get(f'strIngredient{i}', '')
-            measure = meal.get(f'strMeasure{i}', '')
-            if ingredient:
-                ingredients.append(f"{measure.strip()} {ingredient.strip()}".strip())
-        recipe = {
-            "id": meal['idMeal'],
-            "name": meal['strMeal'],
-            "image_bytes": image,
-            "instructions": meal['strInstructions'],
-            "ingredients": [ing for ing in ingredients if ing]}
-        send_recipe(message.chat.id, recipe)
+        if message.text in names:
+            server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
+            meal = requests.get(server + message.text).json()['meals'][0]
+            img_data = requests.get(meal['strMealThumb']).content
+            image = process_image(img_data)
+            ingredients = []
+
+            for i in range(1, 21):
+                ingredient = meal.get(f'strIngredient{i}', '')
+                measure = meal.get(f'strMeasure{i}', '')
+                if ingredient:
+                    ingredients.append(f"{measure.strip()} {ingredient.strip()}".strip())
+
+            recipe = {
+                "id": meal['idMeal'],
+                "name": meal['strMeal'],
+                "image_bytes": image,
+                "instructions": meal['strInstructions'],
+                "ingredients": [ing for ing in ingredients if ing]}
+
+            send_recipe(message.chat.id, recipe)
+        else:
+            bot.send_message(message.chat.id, 'Please select a dish from the list.')
+            bot.register_next_step_handler(message, get_name, names)
 
 
 def search_by_category(message):
     server = 'https://www.themealdb.com/api/json/v1/1/list.php?c=list'
     response = requests.get(server).json()
     keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+
     for category in response['meals']:
         button = KeyboardButton(category['strCategory'])
         keyboard.add(button)
-    bot.send_message(message.chat.id, "Choose the category of the food:", reply_markup=keyboard)
+
+    bot.send_message(message.chat.id, "Choose the category of the food.", reply_markup=keyboard)
     bot.register_next_step_handler(message, get_category)
 
 
@@ -91,22 +106,33 @@ def get_category(message):
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
         response = requests.get(server + message.text).json()
-        keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-        for meal in response['meals']:
-            name = KeyboardButton(text=meal['strMeal'])
-            keyboard.add(name)
-        bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
-        bot.register_next_step_handler(message, get_name)
+
+        if response['meals']:
+            keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+            names = []
+
+            for meal in response['meals']:
+                name = KeyboardButton(text=meal['strMeal'])
+                keyboard.add(name)
+                names.append(name)
+
+            bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
+            bot.register_next_step_handler(message, get_name, names)
+        else:
+            bot.send_message(message.chat.id, "Please select a category from the list.")
+            bot.register_next_step_handler(message, get_category)
 
 
 def search_by_country(message):
     server = 'https://www.themealdb.com/api/json/v1/1/list.php?a=list'
     response = requests.get(server).json()
     keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+
     for category in response['meals']:
         button = KeyboardButton(category['strArea'])
         keyboard.add(button)
-    bot.send_message(message.chat.id, "Choose the country of the food:", reply_markup=keyboard)
+
+    bot.send_message(message.chat.id, "Choose the country of the food.", reply_markup=keyboard)
     bot.register_next_step_handler(message, get_country)
 
 
@@ -114,12 +140,21 @@ def get_country(message):
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/filter.php?a='
         response = requests.get(server + message.text).json()
-        keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-        for meal in response['meals']:
-            name = KeyboardButton(text=meal['strMeal'])
-            keyboard.add(name)
-        bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
-        bot.register_next_step_handler(message, get_name)
+
+        if response['meals']:
+            keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+            names = []
+
+            for meal in response['meals']:
+                name = KeyboardButton(text=meal['strMeal'])
+                keyboard.add(name)
+                names.append(name)
+
+            bot.send_message(message.chat.id, 'This is what I managed to find:', reply_markup=keyboard)
+            bot.register_next_step_handler(message, get_name, names)
+        else:
+            bot.send_message(message.chat.id, "Please select a country from the list.")
+            bot.register_next_step_handler(message, get_country)
 
 
 def search_by_ingredient(message):
@@ -133,7 +168,7 @@ def help(message):
                                       "• Suggest a random recipe of the day (/recipe_of_the_day)\n"
                                       "• Show your favorite dishes (/favorites)\n"
                                       "• Open your recipe history (/history)\n\n"
-                                      "<b>Enjoy cooking with ease! ⭐️</b>", parse_mode="HTML")
+                                      "<b>Enjoy cooking with ease! ⭐️</b>", parse_mode="HTML", reply_markup=None)
 
 
 def send_recipe(chat_id, recipe, show_favorite_button=False):
@@ -155,7 +190,7 @@ def send_recipe(chat_id, recipe, show_favorite_button=False):
                 chat_id,
                 recipe["image_bytes"],
                 caption=f"<b>{recipe['name']}</b>\n\n<u>Ingredients:</u>\n{ingredients_text}",
-                parse_mode="HTML", reply_markup=remove
+                parse_mode="HTML", reply_markup=None
             )
     else:
         bot.send_message(
