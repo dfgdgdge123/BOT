@@ -1,5 +1,6 @@
 import requests
 import telebot
+from history import add_dish, show_dishes
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day, process_image
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, \
@@ -7,16 +8,15 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 
 bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
 remove = ReplyKeyboardRemove()
-is_choosing = {}  # словарь, в котором будут булевые значения того, находится ли уже юзер в процессе выбора
 
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start'])  # стартовая команда
 def start(message):
     bot.send_message(message.chat.id, "<b>Hello!👋</b>\n"
                                       "Type /help to see what I can do", parse_mode="HTML", reply_markup=remove)
 
 
-@bot.message_handler(commands=['search'])
+@bot.message_handler(commands=['search'])  # команда поиска блюд
 def search_processing(message):
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(InlineKeyboardButton('Name', callback_data='name'),
@@ -26,24 +26,29 @@ def search_processing(message):
     bot.send_message(message.chat.id, 'Search by:', reply_markup=markup)
 
 
-@bot.callback_query_handler(func=lambda call: call.data in ['name', 'category', 'country', 'ingredient'])
+@bot.callback_query_handler(
+    func=lambda call: call.data in ['name', 'category', 'country', 'ingredient'])  # выбор способа поиска
 def search(call):
     if call.data == 'name':
         bot.send_message(call.message.chat.id, 'Enter the name of the food:', reply_markup=remove)
         bot.register_next_step_handler(call.message, search_by_name)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
 
     elif call.data == 'category':
         search_by_category(call.message)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
 
     elif call.data == 'country':
         search_by_country(call.message)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
 
     elif call.data == 'ingredient':
         bot.send_message(call.message.chat.id, 'Enter the name of the ingredient:', reply_markup=remove)
         bot.register_next_step_handler(call.message, search_by_ingredient)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
 
 
-def search_by_name(message):
+def search_by_name(message):  # поиск по названию
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
         response = requests.get(server + message.text).json()
@@ -64,7 +69,7 @@ def search_by_name(message):
             bot.register_next_step_handler(message, search_by_name)
 
 
-def get_name(message, names):
+def get_name(message, names):  # получение конкретного блюда
     if not command_handler(message):
         if message.text in names:
             server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
@@ -86,13 +91,13 @@ def get_name(message, names):
                 "instructions": meal['strInstructions'],
                 "ingredients": [ing for ing in ingredients if ing]}
 
-            send_recipe(message.chat.id, recipe)
+            send_recipe(message.chat.id, recipe, show_favorite_button=True)
         else:
-            bot.send_message(message.chat.id, 'Please select a dish from the list:')
+            bot.send_message(message.chat.id, 'Please select a dish from the list.')
             bot.register_next_step_handler(message, get_name, names)
 
 
-def search_by_category(message):
+def search_by_category(message):  # поиск по категории
     server = 'https://www.themealdb.com/api/json/v1/1/list.php?c=list'
     response = requests.get(server).json()
     keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
@@ -105,7 +110,7 @@ def search_by_category(message):
     bot.register_next_step_handler(message, get_category)
 
 
-def get_category(message):
+def get_category(message):  # получение конкретной категории
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
         response = requests.get(server + message.text).json()
@@ -126,7 +131,7 @@ def get_category(message):
             bot.register_next_step_handler(message, get_category)
 
 
-def search_by_country(message):
+def search_by_country(message):  # поиск по стране
     server = 'https://www.themealdb.com/api/json/v1/1/list.php?a=list'
     response = requests.get(server).json()
     keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
@@ -139,7 +144,7 @@ def search_by_country(message):
     bot.register_next_step_handler(message, get_country)
 
 
-def get_country(message):
+def get_country(message):  # получение конкретной страны
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/filter.php?a='
         response = requests.get(server + message.text).json()
@@ -160,7 +165,7 @@ def get_country(message):
             bot.register_next_step_handler(message, get_country)
 
 
-def search_by_ingredient(message):
+def search_by_ingredient(message):  # поиск по ингредиенту
     if not command_handler(message):
         server = 'https://www.themealdb.com/api/json/v1/1/filter.php?i='
         response = requests.get(server + message.text).json()
@@ -181,7 +186,7 @@ def search_by_ingredient(message):
             bot.register_next_step_handler(message, search_by_ingredient)
 
 
-@bot.message_handler(commands=['help'])
+@bot.message_handler(commands=['help'])  # вызов справочника команд
 def help(message):
     bot.send_message(message.chat.id, "💥 Here's what I can do:\n• Find recipes by criteria\n"
                                       "(ingredients, diet, country) (/search)\n"
@@ -191,7 +196,8 @@ def help(message):
                                       "<b>Enjoy cooking with ease! ⭐️</b>", parse_mode="HTML", reply_markup=remove)
 
 
-def send_recipe(chat_id, recipe, show_favorite_button=False):
+def send_recipe(chat_id, recipe, show_favorite_button=False):  # отправка рецепта пользователю
+    add_dish(chat_id, recipe['id'])
     ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
 
     if "image_bytes" in recipe and recipe["image_bytes"]:
@@ -235,7 +241,8 @@ def random_recipe(message):
     recipe = get_recipe_of_the_day()
 
     if recipe:
-        send_recipe(message.chat.id, recipe, show_favorite_button=True)
+        send_recipe(message.chat.id, recipe,
+                    show_favorite_button=True)  # должна быть проверка на наличие этого рецепта в базе
     else:
         bot.send_message(message.chat.id, "Recipe of the day not found. Please try again later.")
 
@@ -258,6 +265,11 @@ def show_favorites(message):
         "<code>Delete Recipe_Name</code>\n\n"
     )
     bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+
+
+@bot.message_handler(commands=['history'])
+def show_history(message):
+    l = show_dishes(message.chat.id)
 
 
 @bot.callback_query_handler(func=lambda call: True)
