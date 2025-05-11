@@ -1,6 +1,6 @@
 import requests
 import telebot
-from history import add_dish, show_dishes
+from history import add_dish, show_dishes, clear
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day, process_image
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, \
@@ -69,28 +69,38 @@ def search_by_name(message):  # поиск по названию
             bot.register_next_step_handler(message, search_by_name)
 
 
-def get_name(message, names):  # получение конкретного блюда
-    if not command_handler(message):
+def preparing_recipe(meal):
+    img_data = requests.get(meal['strMealThumb']).content
+    image = process_image(img_data)
+    ingredients = []
+
+    for i in range(1, 21):
+        ingredient = meal.get(f'strIngredient{i}', '')
+        measure = meal.get(f'strMeasure{i}', '')
+        if ingredient:
+            ingredients.append(f"{measure.strip()} {ingredient.strip()}".strip())
+
+    recipe = {
+        "id": meal['idMeal'],
+        "name": meal['strMeal'],
+        "image_bytes": image,
+        "instructions": meal['strInstructions'],
+        "ingredients": [ing for ing in ingredients if ing]}
+    return recipe
+
+
+def get_name(message, names=None, recipe_id=None):  # получение конкретного блюда
+    if recipe_id:
+        server = 'https://www.themealdb.com/api/json/v1/1/lookup.php?i='
+        meal = requests.get(server + str(recipe_id)).json()['meals'][0]
+        recipe = preparing_recipe(meal)
+        send_recipe(message.chat.id, recipe, show_favorite_button=True)
+
+    elif not command_handler(message):
         if message.text in names:
             server = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
             meal = requests.get(server + message.text).json()['meals'][0]
-            img_data = requests.get(meal['strMealThumb']).content
-            image = process_image(img_data)
-            ingredients = []
-
-            for i in range(1, 21):
-                ingredient = meal.get(f'strIngredient{i}', '')
-                measure = meal.get(f'strMeasure{i}', '')
-                if ingredient:
-                    ingredients.append(f"{measure.strip()} {ingredient.strip()}".strip())
-
-            recipe = {
-                "id": meal['idMeal'],
-                "name": meal['strMeal'],
-                "image_bytes": image,
-                "instructions": meal['strInstructions'],
-                "ingredients": [ing for ing in ingredients if ing]}
-
+            recipe = preparing_recipe(meal)
             send_recipe(message.chat.id, recipe, show_favorite_button=True)
         else:
             bot.send_message(message.chat.id, 'Please select a dish from the list.')
@@ -197,7 +207,7 @@ def help(message):
 
 
 def send_recipe(chat_id, recipe, show_favorite_button=False):  # отправка рецепта пользователю
-    add_dish(chat_id, recipe['id'])
+    add_dish(chat_id, recipe['id'], recipe['name'])
     ingredients_text = "\n".join([f"• {ing}" for ing in recipe.get("ingredients", [])])
 
     if "image_bytes" in recipe and recipe["image_bytes"]:
@@ -235,19 +245,19 @@ def send_recipe(chat_id, recipe, show_favorite_button=False):  # отправк�
             bot.send_message(chat_id, chunk, parse_mode="HTML")
 
 
-@bot.message_handler(commands=['recipe_of_the_day'])
+@bot.message_handler(commands=['recipe_of_the_day'])  # команда рецепта дня
 def random_recipe(message):
     update_recipe_of_the_day()
     recipe = get_recipe_of_the_day()
 
     if recipe:
         send_recipe(message.chat.id, recipe,
-                    show_favorite_button=True)  # должна быть проверка на наличие этого рецепта в базе
+                    show_favorite_button=True)
     else:
         bot.send_message(message.chat.id, "Recipe of the day not found. Please try again later.")
 
 
-@bot.message_handler(commands=['favorites'])
+@bot.message_handler(commands=['favorites'])  # список понравившихся блюд
 def show_favorites(message):
     favorites = get_favorites(message.from_user.id)
 
@@ -267,9 +277,31 @@ def show_favorites(message):
     bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
 
 
-@bot.message_handler(commands=['history'])
+@bot.message_handler(commands=['history'])  # историю просмотренных блюд
 def show_history(message):
-    l = show_dishes(message.chat.id)
+    history_list = show_dishes(message.chat.id)
+
+    if not history_list:
+        bot.send_message(message.chat.id, "Your history is empty.")
+        return
+
+    markup = InlineKeyboardMarkup()
+    for recipe in history_list:
+        markup.add(InlineKeyboardButton(recipe[1], callback_data=f"show_recipe_from_history:{recipe[0]}"))
+
+    instruction = (
+        "⭐ <b>Your history of recipes:</b>\n\n"
+        "To clear history, send:\n"
+        "/clear_history\n\n"
+    )
+
+    bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+
+
+@bot.message_handler(commands=['clear_history'])
+def clear_history(message):
+    clear(message.chat.id)
+    bot.send_message(message.chat.id, 'History successfully cleared.', reply_markup=remove)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -291,6 +323,9 @@ def callback_handler(call):
             send_recipe(call.message.chat.id, recipe)
         else:
             bot.send_message(call.message.chat.id, "Recipe not found")
+    elif call.data.startswith("show_recipe_from_history:"):
+        recipe_id = call.data.split(":")[1]
+        get_name(call.message, recipe_id=recipe_id)
 
 
 @bot.message_handler(func=lambda message: message.text.lower().startswith('delete '))
