@@ -1,0 +1,4 @@
+requests~=2.32.3
+SQLAlchemy~=2.0.40
+pillow~=11.2.1
+telebot~=0.0.5
