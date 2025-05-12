@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, ForeignKey, String
+from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 Base = declarative_base()
@@ -13,7 +13,7 @@ class UserDish(Base):
 
 
 def add_dish(user_id, dish_id, dish_name):  # добавление блюда
-    engine = create_engine('sqlite:///history.db')
+    engine = create_engine('sqlite:///database.db')
     Session = sessionmaker(bind=engine)
     session = Session()
 
@@ -32,7 +32,7 @@ def add_dish(user_id, dish_id, dish_name):  # добавление блюда
 
 
 def show_dishes(user_id):  # возврат списка кортежей истории блюд
-    engine = create_engine('sqlite:///history.db')
+    engine = create_engine('sqlite:///database.db')
     Session = sessionmaker(bind=engine)
     session = Session()
 
@@ -42,7 +42,7 @@ def show_dishes(user_id):  # возврат списка кортежей ист
 
 
 def clear(user_id):
-    engine = create_engine('sqlite:///history.db')
+    engine = create_engine('sqlite:///database.db')
     Session = sessionmaker(bind=engine)
     session = Session()
 
