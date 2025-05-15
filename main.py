@@ -267,16 +267,25 @@ def show_favorites(message):
         bot.send_message(message.chat.id, "Your favorites list is empty.")
         return
 
-    markup = InlineKeyboardMarkup()
-    for recipe in favorites:
-        markup.add(InlineKeyboardButton(recipe[1], callback_data=f"show_recipe:{recipe[1]}"))
-
     instruction = (
-        "⭐ <b>Your favorite recipes:</b>\n\n"
-        "To delete a recipe, send:\n"
-        "<code>Delete Recipe_Name</code>\n\n"
+        "⭐ <b>Your history of recipes:</b>\n\n"
+        "To clear history, send:\n"
+        "/clear_history\n\n"
     )
-    bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+    markup = InlineKeyboardMarkup()
+    last_send = True
+
+    for i, recipe in enumerate(favorites):
+        markup.add(InlineKeyboardButton(recipe[1], callback_data=f"show_recipe:{recipe[0]}"))
+        if (i + 1) % 100 == 0:
+            bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+            instruction = '.'
+            markup = InlineKeyboardMarkup()
+            last_send = False
+        else:
+            last_send = True
+    if last_send:
+        bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
 
 
 @bot.message_handler(commands=['history'])  # историю просмотренных блюд
@@ -287,17 +296,25 @@ def show_history(message):
         bot.send_message(message.chat.id, "Your history is empty.")
         return
 
-    markup = InlineKeyboardMarkup()
-    for recipe in history_list:
-        markup.add(InlineKeyboardButton(recipe[1], callback_data=f"show_recipe_from_history:{recipe[0]}"))
-
     instruction = (
         "⭐ <b>Your history of recipes:</b>\n\n"
         "To clear history, send:\n"
         "/clear_history\n\n"
     )
+    markup = InlineKeyboardMarkup()
+    last_send = True
 
-    bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+    for i, recipe in enumerate(history_list):
+        markup.add(InlineKeyboardButton(recipe[1], callback_data=f"show_recipe_from_history:{recipe[0]}"))
+        if (i + 1) % 100 == 0:
+            bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
+            instruction = '.'
+            markup = InlineKeyboardMarkup()
+            last_send = False
+        else:
+            last_send = True
+    if last_send:
+        bot.send_message(message.chat.id, instruction, reply_markup=markup, parse_mode="HTML")
 
 
 @bot.message_handler(commands=['clear_history'])
@@ -339,7 +356,7 @@ def handle_delete_favorite(message):
     recipe_name = message.text[7:].strip()
 
     favorites = get_favorites(user_id)
-    recipe_exists = any(r[1].lower() == recipe_name.lower() for r in favorites)
+    recipe_exists = any(r[1] == recipe_name for r in favorites)
 
     if recipe_exists:
         remove_from_favorites(user_id, recipe_name)
