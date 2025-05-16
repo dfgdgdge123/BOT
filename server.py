@@ -6,7 +6,8 @@ from favorites import add_to_favorites, get_favorites, create_favorite_button, r
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, \
     ReplyKeyboardRemove
 
-bot = telebot.TeleBot('8086994241:AAHUUxXKfpGGGUEYXPmKVenIrdZWiqs8z9M')
+token = os.environ.get("token")
+bot = telebot.TeleBot(token)
 remove = ReplyKeyboardRemove()
 
 
@@ -382,4 +383,5 @@ def command_handler(message):
         return True
 
 
-bot.polling(none_stop=True)
+if __name__ == '__main__':
+    bot.polling(none_stop=True)
