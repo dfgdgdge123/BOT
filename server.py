@@ -270,9 +270,9 @@ def show_favorites(message):
         return
 
     instruction = (
-        "⭐ <b>Your history of recipes:</b>\n\n"
-        "To clear history, send:\n"
-        "/clear_history\n\n"
+        "⭐ <b>Your favorite recipes:</b>\n\n"
+        "To delete a recipe, send:\n"
+        "<code>Delete Recipe_Name</code>\n\n"
     )
     markup = InlineKeyboardMarkup()
     last_send = True
