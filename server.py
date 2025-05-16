@@ -1,5 +1,6 @@
 import requests
 import telebot
+import os
 from history import add_dish, show_dishes, clear
 from random_func import update_recipe_of_the_day, get_recipe_of_the_day, process_image
 from favorites import add_to_favorites, get_favorites, create_favorite_button, remove_from_favorites, check_recipe_in_db
