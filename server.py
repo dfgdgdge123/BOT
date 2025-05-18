@@ -384,5 +384,13 @@ def command_handler(message):
         return True
 
 
+def job():
+    requests.get('https://glitch.com/edit/#!/screeching-shadow-celery?path=images%2Fcarbonara.jpg%3A1%3A0')
+
+
 if __name__ == '__main__':
     bot.polling(none_stop=True)
+    schedule.every(2).minutes.do(job)
+
+    while True:
+        schedule.run_pending()
